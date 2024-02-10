@@ -1,49 +1,65 @@
 import cv2  # Import OpenCV
+import mediapipe as mp  # Import Mediapipe
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 class VideoInput:
-    def init_video_capture(self, device_index=0):
-        # Initialize video capture
+    def __init__(self, device_index=0):
+        self.running = True
+
         self.cap = cv2.VideoCapture(device_index)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 600)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 600) # Set the width of the frame
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 500) # Set the height of the frame
 
-    def capture_frame(self, cap):
-        # Capture a single frame
-        pass
-
-    def process_frame(self, frame):
-        # Process frame for hand detection
-        pass
-
-    def detect_hand(self, processed_frame):
-        # Detect hand in the frame
-        pass
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_hands = mp.solutions.hands
+        self.hand = self.mp_hands.Hands()
+        self.result = None
+        
+        #self.hand_model = None
+        #self.hand_data = None
+        #self.hand_gestures = None
 
     def interpret_gestures(self, hand_data):
-        # Interpret hand gestures from detected hand data
-        pass
+        # Check to see if the hand detection has been successful
+        if hand_data is None:
+            print("No hand result detected")
+            return
+        
+        # Interpret the hand data
 
-    def display_stream(self, hand_info=None):
-        # Display video stream and optional hand detection info
-        if not self.cap:
-            print("Video capture not initialized.")
+    def display_stream(self):
+        if not self.cap.isOpened():
+            print("Video capture not opened.")
             return
 
-        while True:
+        while self.running:
             success, frame = self.cap.read()
-            if not success:
-                print("Failed to grab frame")
-                break
-            
-            cv2.imshow('Capture Image', frame)
-
-            # Check for the 'X' button on the window to break the loop
-            if cv2.waitKey(1) & 0xFF == ord('q'):  # Optionally, close with 'q' key
-                break
+            if success:
+                self.hand_detection(frame) # Detect hand landmarks
+                
+                cv2.imshow('Test Camera', cv2.flip(frame, 1)) # Display a flipped frame
+                if cv2.waitKey(1) == ord('q'):  # Press 'q' to close
+                    break
 
         self.cap.release()
         cv2.destroyAllWindows()
+  
+    def hand_detection(self, frame):
+        RGB_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        self.result = self.hand.process(RGB_frame)
+        if self.result.multi_hand_landmarks:
+            for hand_landmarks in self.result.multi_hand_landmarks:
+                self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS,
+                                                self.mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=6, circle_radius=4),
+                                                self.mp_drawing.DrawingSpec(color=(16, 242, 16), thickness=2, circle_radius=2)
+                                               )
+                print(hand_landmarks)
 
-    def release_video_capture(self, cap):
-        # Cleanup and release video capture resources
-        pass
+    def close_stream(self):
+        # Signal the loop to stop
+        self.running = False
+        if self.cap.isOpened():
+            self.cap.release()
+        cv2.destroyAllWindows()
+        print("Video capture closed")
