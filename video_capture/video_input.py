@@ -15,18 +15,34 @@ class VideoInput:
         self.mp_hands = mp.solutions.hands
         self.hand = self.mp_hands.Hands()
         self.result = None
-        
-        #self.hand_model = None
-        #self.hand_data = None
-        #self.hand_gestures = None
 
-    def interpret_gestures(self, hand_data):
+    def interpret_gestures(self, result):
         # Check to see if the hand detection has been successful
-        if hand_data is None:
+        if result is None:
             print("No hand result detected")
             return
         
-        # Interpret the hand data
+        # Finger counter
+        finger_counter = 0
+
+        # List of finger tips and metacarpal joints
+        tips = [self.mp_hands.HandLandmark.THUMB_TIP, self.mp_hands.HandLandmark.INDEX_FINGER_TIP, 
+                self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP, self.mp_hands.HandLandmark.RING_FINGER_TIP, 
+                self.mp_hands.HandLandmark.PINKY_TIP
+                ] 
+        mcps = [self.mp_hands.HandLandmark.THUMB_MCP, self.mp_hands.HandLandmark.INDEX_FINGER_MCP, 
+                self.mp_hands.HandLandmark.MIDDLE_FINGER_MCP, self.mp_hands.HandLandmark.RING_FINGER_MCP, 
+                self.mp_hands.HandLandmark.PINKY_MCP
+                ]
+        
+        # Count the number of fingers that are extended
+        if self.result.multi_hand_landmarks:
+            for tip, mcp in zip(tips, mcps):
+                if self.result.multi_hand_landmarks.hand_landmarks.landmark[tip].y < self.result.multi_hand_landmarks.hand_landmarks.landmark[mcp].y:
+                    finger_counter += 1
+        
+        # Display the number of fingers extended
+        print(finger_counter)
 
     def display_stream(self):
         if not self.cap.isOpened():
@@ -37,6 +53,7 @@ class VideoInput:
             success, frame = self.cap.read()
             if success:
                 self.hand_detection(frame) # Detect hand landmarks
+                self.interpret_gestures(self.result) # Count the number of fingers
                 
                 cv2.imshow('Test Camera', cv2.flip(frame, 1)) # Display a flipped frame
                 if cv2.waitKey(1) == ord('q'):  # Press 'q' to close
@@ -54,7 +71,7 @@ class VideoInput:
                                                 self.mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=6, circle_radius=4),
                                                 self.mp_drawing.DrawingSpec(color=(16, 242, 16), thickness=2, circle_radius=2)
                                                )
-                print(hand_landmarks)
+                #print(hand_landmarks)
 
     def close_stream(self):
         # Signal the loop to stop
